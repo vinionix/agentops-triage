@@ -1,0 +1,9 @@
+services:
+  agentops-triage:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      AGENTOPS_ENVIRONMENT: docker
+      AGENTOPS_LLM_PROVIDER: mock
+      AGENTOPS_MODEL_NAME: mock

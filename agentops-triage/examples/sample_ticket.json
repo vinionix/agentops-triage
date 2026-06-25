@@ -1,0 +1,11 @@
+{
+  "title": "Cliente com lentidão e perda de pacotes",
+  "description": "Cliente relata internet lenta, ping alto e perda de pacotes ao acessar serviços externos. O problema afeta todos os dispositivos da residência.",
+  "channel": "portal",
+  "customer_impact": "high",
+  "service_tags": ["internet", "rede", "latencia"],
+  "metadata": {
+    "city": "Rio de Janeiro",
+    "plan": "residencial"
+  }
+}
