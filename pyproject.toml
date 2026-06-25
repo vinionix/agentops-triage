@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=70.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentops-triage"
+version = "0.1.0"
+description = "Technical support triage platform using Python, Pydantic, LangGraph, LangChain and Agno."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Vinicius Fidelis" }]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "langgraph>=0.2.0",
+    "langchain>=0.3.0",
+    "agno>=1.0.0"
+]
+
+[project.optional-dependencies]
+providers = [
+    "langchain-openai>=0.3.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+    "openai>=1.0.0",
+    "anthropic>=0.40.0",
+    "google-genai>=1.0.0"
+]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.8.0"
+]
+
+[project.scripts]
+agentops-triage = "agentops_triage.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
