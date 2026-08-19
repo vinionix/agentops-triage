@@ -1,12 +1,51 @@
 # AgentOps Triage
 
-AgentOps Triage é um MVP de triagem técnica com IA. A ideia é receber um chamado de suporte, classificar o problema, definir prioridade, sugerir diagnóstico inicial e gerar uma resposta estruturada.
+AgentOps Triage é um MVP de **triagem técnica com arquitetura orientada a agentes/workflows**. A aplicação recebe um chamado de suporte, separa a análise em etapas e produz uma resposta estruturada com classificação, prioridade, diagnóstico inicial e orientação para atendimento.
 
-O projeto foi pensado para simular um fluxo parecido com suporte técnico, NOC ou operação de redes.
+O projeto nasceu da interseção entre suporte/redes e Engenharia de IA: pegar um fluxo operacional conhecido e transformá-lo em um sistema que possa evoluir de regras determinísticas para componentes apoiados por LLMs.
 
-## O que a aplicação faz?
+## Problema
 
-Você envia um chamado técnico em JSON, por exemplo:
+Em operações de suporte e NOC, um chamado precisa ser entendido antes de ser escalado. Normalmente é necessário responder perguntas como:
+
+- Qual é a categoria do incidente?
+- Qual o impacto e a prioridade?
+- Qual hipótese técnica deve ser investigada primeiro?
+- Quais passos de diagnóstico fazem sentido?
+- Como responder ao usuário de forma consistente?
+
+O AgentOps Triage modela esse processo como um pipeline explícito em vez de concentrar toda a decisão em uma única função ou prompt.
+
+## Fluxo interno
+
+```text
+Chamado técnico
+      ↓
+Classifier Agent
+      ↓
+Priority Agent
+      ↓
+Diagnostic Agent
+      ↓
+Response Agent
+      ↓
+Relatório estruturado + trace
+```
+
+Cada etapa possui uma responsabilidade específica e pode ser testada ou substituída separadamente.
+
+## Tecnologias
+
+- Python
+- FastAPI
+- Pydantic
+- LangGraph
+- LangChain
+- Agno
+- Docker
+- Git/GitHub
+
+## Exemplo de entrada
 
 ```json
 {
@@ -18,83 +57,107 @@ Você envia um chamado técnico em JSON, por exemplo:
 }
 ```
 
-A aplicação retorna uma análise estruturada contendo:
+A aplicação retorna uma análise estruturada contendo campos como:
 
-- tipo do problema;
-- prioridade;
-- possível causa;
-- próximos passos de diagnóstico;
-- resposta final para atendimento.
+- `classification`;
+- `priority`;
+- `diagnostic`;
+- `final_response`;
+- `trace`.
 
-## Tecnologias usadas
+## Por que separar em etapas
 
-- Python
-- FastAPI
-- Pydantic
-- LangGraph
-- LangChain
-- Agno
-- Docker
-- Git/GitHub
+Uma resposta única gerada por um modelo pode parecer boa, mas é difícil saber **onde** uma decisão ruim aconteceu. O fluxo multi-step permite:
 
-## Como rodar o projeto localmente
+- validar entradas e saídas intermediárias;
+- localizar falhas com mais facilidade;
+- testar componentes individualmente;
+- trocar uma etapa determinística por uma etapa com LLM sem reescrever tudo;
+- registrar um trace do processo;
+- criar avaliações específicas para classificação, prioridade e diagnóstico.
 
-### 1. Clone o repositório
+## Papel das principais ferramentas
+
+### Pydantic
+
+Define e valida os contratos de entrada e saída. Isso reduz dependência de texto livre e torna a API mais previsível para outros sistemas.
+
+### LangGraph
+
+Organiza o workflow e a passagem de estado entre as etapas do processo de triagem.
+
+### LangChain
+
+Funciona como camada preparada para integração com modelos e outros componentes do ecossistema de LLMs.
+
+### Agno
+
+É mantido como experimento de uma abordagem alternativa para construção de agentes.
+
+### FastAPI
+
+Expõe o fluxo como API HTTP e disponibiliza documentação OpenAPI interativa em `/docs`.
+
+## Estado atual da IA
+
+Este projeto foi iniciado como um MVP de arquitetura e estudo. A primeira versão prioriza:
+
+- fluxo de triagem;
+- contratos de dados;
+- separação de responsabilidades;
+- estrutura de agentes/nós;
+- API e possibilidade de rastrear o processamento.
+
+A integração com modelos reais pode ser evoluída pela camada preparada para LLMs. O README não trata uma integração futura como funcionalidade já concluída.
+
+## Como rodar localmente
+
+### 1. Clone
 
 ```bash
 git clone https://github.com/vinionix/agentops-triage.git
 cd agentops-triage
 ```
 
-### 2. Crie o ambiente virtual
+### 2. Ambiente virtual
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Depois de ativar, o terminal deve mostrar algo parecido com:
-
-```bash
-(.venv) usuario@pc:~/agentops-triage$
-```
-
-### 3. Instale as dependências
+### 3. Dependências
 
 ```bash
 python3 -m pip install --upgrade pip
 python3 -m pip install -e ".[dev]"
 ```
 
-### 4. Rode a API
+### 4. API
 
 ```bash
 uvicorn agentops_triage.main:app --reload
 ```
 
-Se tudo estiver certo, a aplicação ficará disponível em:
-
-```text
-http://localhost:8000
-```
-
-## Como testar no navegador
-
-Abra:
+Acesse:
 
 ```text
 http://localhost:8000/docs
 ```
 
-Essa página é a documentação interativa da API.
+## Execução pelo terminal
 
-### Teste 1: verificar se a API está ativa
+```bash
+python3 -m agentops_triage examples/sample_ticket.json --no-langgraph
+```
 
-1. Procure a rota `GET /health`.
-2. Clique em `Try it out`.
-3. Clique em `Execute`.
+Esse caminho é útil para testar a triagem sem depender da interface HTTP.
 
-Resposta esperada:
+## Como testar rapidamente
+
+### Health check
+
+Use `GET /health` e verifique:
 
 ```json
 {
@@ -102,91 +165,42 @@ Resposta esperada:
 }
 ```
 
-### Teste 2: executar a triagem
+### Triagem
 
-1. Procure a rota `POST /triage`.
-2. Clique em `Try it out`.
-3. Cole este exemplo no corpo da requisição:
+Envie um chamado para `POST /triage` e valide os campos estruturados retornados.
 
-```json
-{
-  "title": "Cliente com lentidão e perda de pacotes",
-  "description": "Cliente relata internet lenta, ping alto e perda de pacotes ao acessar serviços externos. O problema afeta todos os dispositivos da residência.",
-  "channel": "portal",
-  "customer_impact": "high",
-  "service_tags": ["internet", "rede", "latencia"],
-  "metadata": {
-    "city": "Rio de Janeiro",
-    "plan": "residencial"
-  }
-}
-```
+## Direção de evolução
 
-4. Clique em `Execute`.
-5. Observe o relatório retornado pela API.
+Próximos passos tecnicamente interessantes:
 
-## Como rodar pelo terminal
+1. integrar um LLM real atrás de uma interface substituível;
+2. criar uma suíte de avaliação com chamados conhecidos;
+3. medir precisão de classificação e prioridade;
+4. adicionar recuperação de uma base técnica;
+5. implementar confiança/abstenção;
+6. registrar tokens, latência e modelo utilizado;
+7. adicionar observabilidade por nó;
+8. testar prompt injection e entradas adversariais;
+9. manter aprovação humana para ações de maior risco.
 
-Também é possível testar usando o exemplo salvo no projeto:
+## O que este projeto demonstra
 
-```bash
-python3 -m agentops_triage examples/sample_ticket.json --no-langgraph
-```
+- modelagem de um problema operacional real;
+- Python e FastAPI;
+- contratos de dados com Pydantic;
+- arquitetura multi-step;
+- LangGraph e preparação para integração com LLMs;
+- separação entre lógica determinística e componentes generativos;
+- preocupação com avaliação, rastreabilidade e evolução incremental.
 
-## Como entender a resposta
+## Documentação
 
-A resposta da triagem pode trazer campos como:
+- [Technical Overview](docs/TECHNICAL_OVERVIEW.md) — decisões de arquitetura, fronteira atual da IA, estratégia de testes e roadmap técnico.
 
-- `classification`: categoria do problema identificado;
-- `priority`: prioridade do chamado;
-- `diagnostic`: hipótese técnica e próximos passos;
-- `final_response`: resposta estruturada para atendimento;
-- `trace`: histórico das etapas executadas.
+## Como explicar o projeto em uma entrevista
 
-## Fluxo interno do projeto
+> AgentOps Triage transforma o processo de triagem de suporte em um workflow explícito. Em vez de pedir para um único modelo decidir tudo, o sistema separa classificação, prioridade, diagnóstico e resposta. Isso permite validar cada etapa, rastrear decisões e integrar LLMs de forma incremental e testável.
 
-```text
-Chamado técnico
-    ↓
-Classifier Agent
-    ↓
-Priority Agent
-    ↓
-Diagnostic Agent
-    ↓
-Response Agent
-    ↓
-Relatório final
-```
+## Autor
 
-Cada etapa possui uma responsabilidade específica. Isso evita concentrar toda a lógica em uma única função ou em um único prompt.
-
-## Papel das principais ferramentas
-
-### Pydantic
-
-Define e valida os formatos dos dados de entrada e saída.
-
-### LangGraph
-
-Organiza o fluxo dos agentes em etapas.
-
-### LangChain
-
-Serve como camada preparada para integração com modelos de linguagem.
-
-### Agno
-
-Fica como experimento para construção de agentes em uma abordagem alternativa.
-
-### FastAPI
-
-Expõe a aplicação como uma API HTTP e gera automaticamente a página `/docs`.
-
-## Observação sobre IA generativa
-
-Este projeto foi iniciado como um MVP de estudo e demonstração. A primeira versão prioriza arquitetura, fluxo de triagem e organização do código. A integração com modelos reais pode ser evoluída a partir da camada preparada para LLMs.
-
-## Como explicar o projeto
-
-AgentOps Triage é uma aplicação de triagem técnica com agentes. Ela recebe um chamado de suporte, separa a análise em etapas, classifica o problema, define prioridade, sugere diagnóstico e gera uma resposta final estruturada. O objetivo é aplicar conceitos de IA e automação em um cenário próximo de suporte técnico e redes.
+Desenvolvido por [Vinícius Fidelis](https://github.com/vinionix).
